@@ -80,12 +80,12 @@ setup_optimization <- function(Z, X, ld_blocks, cg_blocks, lambda, a1, a2) {
 
 
 
-#' Soft thresholding operator
+# Soft thresholding operator
 soft_threshold <- function(x, threshold) {
   sign(x) * pmax(abs(x) - threshold, 0)
 }
 
-#' Compute the full objective function
+# Compute the full objective function
 compute_objective <- function(B, Z, X, lambda, a1, a2, 
 						ld_group_indices, ld_blocks,
 						cg_group_indices, cg_blocks) {
@@ -136,12 +136,12 @@ compute_objective <- function(B, Z, X, lambda, a1, a2,
 # PROXIMAL GRADIENT DESCENT ALGORITHM (ALTERNATIVE TO COORDINATE DESCENT)
 # ============================================================================
 
-#' Proximal gradient descent optimization
-#' @setup Setup object from setup_optimization()
-#' @max_iter Maximum number of iterations
-#' @tol Convergence tolerance
-#' @step_size Fixed step size (or use backtracking)
-#' @verbose Print progress information
+# Proximal gradient descent optimization
+# @setup Setup object from setup_optimization()
+# @max_iter Maximum number of iterations
+# @tol Convergence tolerance
+# @step_size Fixed step size (or use backtracking)
+# @verbose Print progress information
 optimize_proximal_gradient <- function(setup, max_iter = 5000, tol = 1e-6, 
                                       step_size = NULL, verbose = TRUE) {
   
@@ -232,7 +232,7 @@ optimize_proximal_gradient <- function(setup, max_iter = 5000, tol = 1e-6,
   )
 }
 
-#' Apply composite proximal operator for all penalties
+# Apply composite proximal operator for all penalties
 apply_composite_proximal <- function(B, step_size, setup) {
   lambda <- setup$lambda
   a1 <- setup$a1
@@ -293,24 +293,24 @@ apply_composite_proximal <- function(B, step_size, setup) {
   return(B3)
 }
 
-#' Two-Stage Optimization for Multi-Gene Sparse Regression
-#' 
-#' Stage 1: Estimate cis blocks independently using single-gene optimization
-#' Stage 2: Estimate trans blocks using glmnet given fixed cis blocks
-#' Stage 3: Refine cis blocks given trans estimates
-#' 
-#' @Z Matrix of SNP data (n x p)
-#' @X Matrix of methylation data (n x h)
-#' @gene_structure List of gene structures (snp_range, methyl_range, ld_blocks, cg_blocks)
-#' @lambda_cis Vector of lambda values for each gene's cis block
-#' @a1_cis Vector of a1 values for each gene
-#' @a2_cis Vector of a2 values for each gene
-#' @lambda_trans Penalty parameter for trans blocks (single value)
-#' @max_iter Maximum iterations for single-gene optimization
-#' @tol Convergence tolerance
-#' @verbose Print progress
-#' 
-#' @return List containing optimized B matrix and diagnostics
+# Two-Stage Optimization for Multi-Gene Sparse Regression
+# 
+# Stage 1: Estimate cis blocks independently using single-gene optimization
+# Stage 2: Estimate trans blocks using glmnet given fixed cis blocks
+# Stage 3: Refine cis blocks given trans estimates
+# 
+# @Z Matrix of SNP data (n x p)
+# @X Matrix of methylation data (n x h)
+# @gene_structure List of gene structures (snp_range, methyl_range, ld_blocks, cg_blocks)
+# @lambda_cis Vector of lambda values for each gene's cis block
+# @a1_cis Vector of a1 values for each gene
+# @a2_cis Vector of a2 values for each gene
+# @lambda_trans Penalty parameter for trans blocks (single value)
+# @max_iter Maximum iterations for single-gene optimization
+# @tol Convergence tolerance
+# @verbose Print progress
+# 
+# @return List containing optimized B matrix and diagnostics
 two_stage_optimize_multigene <- function(Z, X, gene_structure,
                                          lambda_cis, a1_cis, a2_cis,
                                          lambda_trans,
@@ -751,16 +751,6 @@ optimize_proximal_gradient_dykstra <- function(setup, max_iter = 5000, tol = 1e-
 }
 
 # Cyclic Dykstra proximal algorithm
-#
-# Solves: min_x f_1(x) + f_2(x) + f_3(x) + (1/2gamma)||x - V||^2
-# where f_1 = a1*lambda*||.||_1, f_2 = a2*lambda*||.||_LD, f_3 = a3*lambda*||.||_CG
-#
-# Cyclic ordering following Yu (2013) Corollary 3:
-#   finer structure first, coarser structure last: L1 -> LD -> CG
-# Each prox feeds its output directly into the next (sequential composition).
-# Dykstra increment variables (d1, d2, d3) carry the dual corrections
-# across cycles, exactly as in classical Dykstra (Boyle & Dykstra 1986).
-#
 # @V Input matrix (gradient step output)
 # @step_size Outer step size gamma
 # @setup Optimization setup object
@@ -900,15 +890,6 @@ fit_scaled_group_lasso <- function(y, X_hat, cg_blocks,
 
   # ------------------------------------------------------------------
   # Compute BASE penalty weights: omega_base_b = sqrt(d_b/n) + sqrt(2 log B / n)
-  #
-  # These match the theoretically motivated weights in Theorem 7:
-  #   omega_{*,j} proportional to (sqrt(|G_j|) + sqrt(2 log M)) / sqrt(n)
-  #
-  # The base weights are BEFORE sigma scaling. After each outer iteration,
-  # we rescale by sigma_hat: omega_b = lambda_scale * sigma_hat * omega_base_b
-  #
-  # We store as an h-vector (one entry per site, same value within a block)
-  # for compatibility with the inner solver.
   # ------------------------------------------------------------------
   omega_base <- rep(NA_real_, h)
   for (b in seq_len(B)) {
@@ -1271,21 +1252,12 @@ solve_group_lasso_proxgrad <- function(y, X_hat, omega, cg_blocks,
 
     # ------------------------------------------------------------------
     # Gradient step:
-    #   gradient = -(1/n) X_hat^T (y - X_hat theta)
-    #            = -(1/n)(Xty - XtX theta)
-    # Gradient descent update: theta_grad = theta - step * gradient
     # ------------------------------------------------------------------
     grad    <- -(Xty - XtX %*% theta) / n   # h x 1
     theta_g <- theta - step_size * grad      # h x 1 gradient step
 
     # ------------------------------------------------------------------
     # Proximal step: block-wise soft thresholding
-    # For each block b:
-    #   v_b = theta_g[block b]
-    #   theta_new[block b] = v_b * max(0, 1 - step*omega_b / ||v_b||_2)
-    #
-    # omega is an h-vector where omega[j] = omega_b for j in block b.
-    # We use omega[block_start[b]] to get the block-level weight.
     # ------------------------------------------------------------------
     theta_new <- theta_g  # copy, then apply proximal in place
 
@@ -1308,7 +1280,6 @@ solve_group_lasso_proxgrad <- function(y, X_hat, omega, cg_blocks,
 
     # ------------------------------------------------------------------
     # Compute objective for convergence monitoring:
-    #   f(theta) = (1/2n)||y - X_hat theta||^2 + sum_b omega_b ||theta_b||_2
     # ------------------------------------------------------------------
     resid_iter  <- y - X_hat %*% theta_new
     smooth_part <- sum(resid_iter^2) / (2.0 * n)
@@ -1350,12 +1321,6 @@ solve_group_lasso_proxgrad <- function(y, X_hat, omega, cg_blocks,
 # ============================================================================
 # REGION WALD TEST FUNCTION
 # ============================================================================
-
-# mz_group_wald_test()
-#
-# Region-level group Wald test for G2G Mendelian Randomization
-# Framework: Mitra & Zhang (2016), adapted to the two-stage MR setting
-
 # CORRECTIONS:
 #   Applied simultaneously across all B block p-values.
 #   "none"       : raw p-values vs fdr_level
@@ -1364,43 +1329,38 @@ solve_group_lasso_proxgrad <- function(y, X_hat, omega, cg_blocks,
 #   "bonferroni" : FWER control, threshold = fdr_level / B
 #   "all"        : all three correction columns returned
 #
-# REQUIREMENTS:
-#   fit_scaled_group_lasso()  [scaled_group_lasso_stage2.R]
-#   mz_group_wald_mr()        [mitra_zhang_wald_test.R]
-#   glmnet                    [CRAN, required only when estimator = "en"]
-#
-# @param y               numeric vector length n. Outcome.
-# @param X_hat           numeric matrix n x h. Instrumented exposures.
+# @y               numeric vector length n. Outcome.
+# @X_hat           numeric matrix n x h. Instrumented exposures.
 #                        Columns must correspond exactly to cg_blocks order.
-# @param cg_blocks       integer vector length B. Selected CpG sites per block.
+# @cg_blocks       integer vector length B. Selected CpG sites per block.
 #                        Entries of 0 are allowed (empty blocks → NA output).
-# @param block_names     character vector length B. Labels for each block.
+# @block_names     character vector length B. Labels for each block.
 #                        Defaults to "Block1", "Block2", ...
-# @param null_blocks     logical vector length B. TRUE = null block (for
+# @null_blocks     logical vector length B. TRUE = null block (for
 #                        downstream power/Type I error calculation). Optional.
 #                        If provided, a null_block column is added to output.
-# @param estimator       "sgl" (default) or "en".
-# @param corrections     "none", "bh", "bonferroni", or "all". Default "bh".
-# @param lambda_scale    numeric scalar or "adaptive" (default).
+# @estimator       "sgl" (default) or "en".
+# @corrections     "none", "bh", "bonferroni", or "all". Default "bh".
+# @lambda_scale    numeric scalar or "adaptive" (default).
 #                        If numeric, used directly. If "adaptive", selected
 #                        from lambda_noisy / lambda_signal based on
 #                        combined_signal vs lambda_threshold.
 #                        Ignored when estimator = "en".
-# @param lambda_threshold numeric. Threshold on combined_signal for adaptive
+# @lambda_threshold numeric. Threshold on combined_signal for adaptive
 #                        lambda selection. Default 0.10.
-# @param lambda_noisy    numeric. lambda_scale when combined_signal <
+# @lambda_noisy    numeric. lambda_scale when combined_signal <
 #                        lambda_threshold (high noise regime). Default 2.0.
-# @param lambda_signal   numeric. lambda_scale when combined_signal >=
+# @lambda_signal   numeric. lambda_scale when combined_signal >=
 #                        lambda_threshold (detectable signal regime). Default 1.0.
-# @param en_fallback     "warn" (default), "error", or "sgl".
+# @en_fallback     "warn" (default), "error", or "sgl".
 #                        Behaviour when EN collapses to zero vector:
 #                        "warn"  — issue warning, return NA Wald stats
 #                        "error" — stop with error
 #                        "sgl"   — silently refit with SGL and use that instead
-# @param fdr_level       numeric. Significance threshold. Default 0.05.
-# @param cond_threshold  numeric. SVD condition number threshold for score
+# @fdr_level       numeric. Significance threshold. Default 0.05.
+# @cond_threshold  numeric. SVD condition number threshold for score
 #                        matrix truncation in mz_group_wald_mr(). Default 30.
-# @param verbose         logical. Print per-block diagnostics. Default FALSE.
+# @verbose         logical. Print per-block diagnostics. Default FALSE.
 #
 # @return data frame with one row per block:
 #   block_name        block label
