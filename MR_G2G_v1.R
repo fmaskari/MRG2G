@@ -137,11 +137,11 @@ compute_objective <- function(B, Z, X, lambda, a1, a2,
 # ============================================================================
 
 #' Proximal gradient descent optimization
-#' @param setup Setup object from setup_optimization()
-#' @param max_iter Maximum number of iterations
-#' @param tol Convergence tolerance
-#' @param step_size Fixed step size (or use backtracking)
-#' @param verbose Print progress information
+#' @setup Setup object from setup_optimization()
+#' @max_iter Maximum number of iterations
+#' @tol Convergence tolerance
+#' @step_size Fixed step size (or use backtracking)
+#' @verbose Print progress information
 optimize_proximal_gradient <- function(setup, max_iter = 5000, tol = 1e-6, 
                                       step_size = NULL, verbose = TRUE) {
   
@@ -299,16 +299,16 @@ apply_composite_proximal <- function(B, step_size, setup) {
 #' Stage 2: Estimate trans blocks using glmnet given fixed cis blocks
 #' Stage 3: Refine cis blocks given trans estimates
 #' 
-#' @param Z Matrix of SNP data (n x p)
-#' @param X Matrix of methylation data (n x h)
-#' @param gene_structure List of gene structures (snp_range, methyl_range, ld_blocks, cg_blocks)
-#' @param lambda_cis Vector of lambda values for each gene's cis block
-#' @param a1_cis Vector of a1 values for each gene
-#' @param a2_cis Vector of a2 values for each gene
-#' @param lambda_trans Penalty parameter for trans blocks (single value)
-#' @param max_iter Maximum iterations for single-gene optimization
-#' @param tol Convergence tolerance
-#' @param verbose Print progress
+#' @Z Matrix of SNP data (n x p)
+#' @X Matrix of methylation data (n x h)
+#' @gene_structure List of gene structures (snp_range, methyl_range, ld_blocks, cg_blocks)
+#' @lambda_cis Vector of lambda values for each gene's cis block
+#' @a1_cis Vector of a1 values for each gene
+#' @a2_cis Vector of a2 values for each gene
+#' @lambda_trans Penalty parameter for trans blocks (single value)
+#' @max_iter Maximum iterations for single-gene optimization
+#' @tol Convergence tolerance
+#' @verbose Print progress
 #' 
 #' @return List containing optimized B matrix and diagnostics
 two_stage_optimize_multigene <- function(Z, X, gene_structure,
@@ -634,12 +634,12 @@ two_stage_optimize_multigene <- function(Z, X, gene_structure,
 # ============================================================================
 
 # Proximal gradient descent with CYCLIC Dykstra inner solver
-# @param setup Setup object from setup_optimization()
-# @param max_iter Maximum number of outer iterations
-# @param tol Convergence tolerance
-# @param step_size Fixed step size (or computed from Lipschitz constant)
-# @param verbose Print progress information
-# @param n_inner Number of Dykstra inner iterations per outer iteration
+# @setup Setup object from setup_optimization()
+# @max_iter Maximum number of outer iterations
+# @tol Convergence tolerance
+# @step_size Fixed step size (or computed from Lipschitz constant)
+# @verbose Print progress information
+# @n_inner Number of Dykstra inner iterations per outer iteration
 optimize_proximal_gradient_dykstra <- function(setup, max_iter = 5000, tol = 1e-6, 
                                                step_size = NULL, verbose = TRUE,
                                                n_inner = 3, decay_schedule = FALSE) {
@@ -761,11 +761,11 @@ optimize_proximal_gradient_dykstra <- function(setup, max_iter = 5000, tol = 1e-
 # Dykstra increment variables (d1, d2, d3) carry the dual corrections
 # across cycles, exactly as in classical Dykstra (Boyle & Dykstra 1986).
 #
-# @param V Input matrix (gradient step output)
-# @param step_size Outer step size gamma
-# @param setup Optimization setup object
-# @param n_cycles Number of cyclic passes
-# @return Approximate prox_{gamma*(f1+f2+f3)}(V)
+# @V Input matrix (gradient step output)
+# @step_size Outer step size gamma
+# @setup Optimization setup object
+# @n_cycles Number of cyclic passes
+#return Approximate prox_{gamma*(f1+f2+f3)}(V)
 cyclic_dykstra_proximal <- function(V, step_size, setup, n_cycles = 3,
                                     decay_schedule = FALSE, outer_iter = 1) {
   
@@ -926,11 +926,6 @@ fit_scaled_group_lasso <- function(y, X_hat, cg_blocks,
 
   # ------------------------------------------------------------------
   # Initialize sigma
-  #
-  # The paper suggests starting from a reasonable sigma estimate.
-  # Using sd(y) is conservative but safe. Alternatively, use
-  # ||y||_2 / sqrt(n) (oracle if theta* = 0) or residual sd from
-  # an OLS fit (if p << n).
   # ------------------------------------------------------------------
   if (is.null(sigma_init)) {
     sigma_hat <- sd(y)
@@ -948,36 +943,15 @@ fit_scaled_group_lasso <- function(y, X_hat, cg_blocks,
   inner_results <- vector("list", max_outer)
 
   # ------------------------------------------------------------------
-  # OUTER LOOP: Algorithm 3.14
-  #
-  # Each iteration:
-  #   (a) Rescale weights: omega' = lambda_scale * sigma_hat * omega_base
-  #   (b) Solve inner group lasso with fixed omega'
-  #   (c) Update sigma: sigma_hat_new = ||y - X_hat theta_hat||_2 / sqrt(n)
-  #   (d) Check convergence of sigma
-  #
-  # Lemma 2 of the paper proves this algorithm converges to the joint
-  # minimizer of the scaled objective (3.12). The profile loss function
-  # is convex in sigma (eq 3.15), ensuring the outer loop is well-behaved.
+  # OUTER LOOP
   # ------------------------------------------------------------------
   for (outer_iter in seq_len(max_outer)) {
 
     if (verbose) cat(sprintf("Outer iter %d/%d: sigma = %.6f\n",
                               outer_iter, max_outer, sigma_hat))
 
-    # ----------------------------------------------------------------
-    # Step (a): Rescale penalty weights by current sigma_hat
-    #           omega' = lambda_scale * sigma_hat * omega_base
-    #           (eq 3.14: omega' <- sigma_hat^{(k+1)} * omega)
-    # ----------------------------------------------------------------
     omega_scaled <- lambda_scale * sigma_hat * omega_base
 
-    # ----------------------------------------------------------------
-    # Step (b): Solve inner group lasso with fixed omega'
-    #           theta_hat <- argmin_theta { (1/2n)||y - X_hat theta||^2
-    #                                       + sum_b omega'_b ||theta_b||_2 }
-    #           (eq 3.14: beta_hat^{(k+1)} <- argmin_beta L_{omega'}(beta))
-    # ----------------------------------------------------------------
     inner_res <- solve_group_lasso_proxgrad(
       y          = y,
       X_hat      = X_hat,
@@ -992,16 +966,6 @@ fit_scaled_group_lasso <- function(y, X_hat, cg_blocks,
     theta_hat          <- inner_res$theta
     inner_results[[outer_iter]] <- inner_res
 
-    # ----------------------------------------------------------------
-    # Step (c): Update sigma estimate
-    #           sigma_hat <- ||y - X_hat theta_hat||_2 / sqrt(n)
-    #           (eq 3.14: sigma_hat^{(k+1)} <- ||y - X beta_hat^{(k)}||_2 / sqrt(n))
-    #
-    # Note: the paper uses sqrt(n), not sqrt(n - p_active), because the
-    # scaled lasso formulation absorbs the degrees-of-freedom adjustment
-    # into the sigma/2 term in the joint objective (3.12). This is the
-    # oracle noise level sigma* = ||y - X beta*||_2 / sqrt(n).
-    # ----------------------------------------------------------------
     resid_outer  <- y - X_hat %*% theta_hat
     sigma_new    <- sqrt(sum(resid_outer^2) / n)
 
@@ -1013,10 +977,7 @@ fit_scaled_group_lasso <- function(y, X_hat, cg_blocks,
                   sigma_hat, sigma_new, p_active, h))
     }
 
-    # ----------------------------------------------------------------
-    # Step (d): Convergence check on sigma
-    #           Stop when relative change in sigma is below tol_outer
-    # ----------------------------------------------------------------
+
     rel_change_sigma <- abs(sigma_new - sigma_hat) / (abs(sigma_hat) + 1e-10)
 
     sigma_hat <- sigma_new
@@ -1060,7 +1021,6 @@ fit_scaled_group_lasso <- function(y, X_hat, cg_blocks,
     }
   }
 
-  # If we reach here, max_outer iterations exhausted
   warning(sprintf("fit_scaled_group_lasso: max_outer (%d) reached without convergence. ",
                   max_outer),
           sprintf("Final rel change in sigma = %.2e. Consider increasing max_outer.",
@@ -1094,11 +1054,6 @@ mz_group_wald_mr <- function(y, X_hat, Z = NULL, B_hat = NULL,
                               alpha_sgl           = 0.05,
                               fdr_level           = 0.05,
                               cond_threshold      = 30,
-                              # Override parameters: supply pre-computed estimates
-                              # from fit_scaled_group_lasso() to bypass internal
-                              # estimation and use the theoretically justified
-                              # scaled group lasso estimator directly.
-                              # When both are supplied, Steps 1 and 2 are skipped.
                               theta_init_override = NULL,   # h-vector from sgl_fit$theta_hat
                               sigma_hat_override  = NULL,   # scalar from sgl_fit$sigma_hat
                               verbose             = TRUE) {
@@ -1119,7 +1074,6 @@ mz_group_wald_mr <- function(y, X_hat, Z = NULL, B_hat = NULL,
     stopifnot(sigma_hat_override > 0)
   }
 
-  # Both overrides must be supplied together or not at all
   use_overrides <- !is.null(theta_init_override) && !is.null(sigma_hat_override)
 
   block_id    <- rep(seq_len(B), times = cg_blocks)
@@ -1141,13 +1095,6 @@ mz_group_wald_mr <- function(y, X_hat, Z = NULL, B_hat = NULL,
 
   # --------------------------------------------------------------------
   # STEP 1: Initial estimator theta_hat_init
-  #
-  # If theta_init_override is supplied (from fit_scaled_group_lasso()),
-  # use it directly -- this is the theoretically preferred path because
-  # the scaled group lasso satisfies the working assumption (2.31) with
-  # a proven rate (Theorem 7 of the paper).
-  #
-  # Otherwise, fall back to grpreg (requires grpreg package).
   # --------------------------------------------------------------------
   if (use_overrides) {
 
@@ -1181,13 +1128,6 @@ mz_group_wald_mr <- function(y, X_hat, Z = NULL, B_hat = NULL,
 
   # --------------------------------------------------------------------
   # STEP 2: Noise estimate sigma_hat
-  #
-  # If sigma_hat_override is supplied (from fit_scaled_group_lasso()),
-  # use it directly -- this is the jointly optimized sigma_hat proven
-  # consistent by Theorem 6 (eq 3.21), which is what the chi-squared
-  # approximation in (2.24) requires.
-  #
-  # Otherwise, estimate from residuals with conservative df correction.
   # --------------------------------------------------------------------
   if (use_overrides) {
 
@@ -1219,14 +1159,6 @@ mz_group_wald_mr <- function(y, X_hat, Z = NULL, B_hat = NULL,
 
   # --------------------------------------------------------------------
   # STEP 3-5: Loop over blocks
-  #
-  # Identical logic to the standard case, but with X_hat replacing X.
-  #
-  # KEY POINT: In the MR setting, X_hat = Z B_hat lies in the column
-  # space of Z. The score matrix Z_b (NOT to be confused with the SNP
-  # matrix Z!) is constructed by regressing X_hat_b on X_hat_{-b}.
-  # Under between-block independence of CpG blocks, X_hat_b and
-  # X_hat_{-b} are approximately uncorrelated, so Z_b ≈ X_hat_b.
   # --------------------------------------------------------------------
   if (verbose) cat("\nStep 3: Computing block-level Wald statistics (MR)...\n")
 
@@ -1244,12 +1176,6 @@ mz_group_wald_mr <- function(y, X_hat, Z = NULL, B_hat = NULL,
 
     if (verbose) cat(sprintf("  Block %d/%d (size %d)... ", b, B, cg_blocks[b]))
 
-    # ----------------------------------------------------------------
-    # Guard: skip blocks with zero selected sites
-    # This happens when Stage 1 IV selection selected no methylation
-    # sites from this block. The Wald test is undefined for an empty
-    # block -- leave all results as NA and continue.
-    # ----------------------------------------------------------------
     if (cg_blocks[b] == 0) {
       if (verbose) cat("EMPTY (no sites selected) -- skipped\n")
       next
@@ -1262,19 +1188,6 @@ mz_group_wald_mr <- function(y, X_hat, Z = NULL, B_hat = NULL,
     X_hat_b     <- X_hat[, idx_b,     drop = FALSE]  # n x d_b
     X_hat_neg_b <- X_hat[, idx_neg_b, drop = FALSE]  # n x (h - d_b)
 
-    # ----------------------------------------------------------------
-    # STEP 3a-b: Score matrix and projection
-    #
-    # Z_b = X_hat_b - X_hat_{-b} Gamma_hat_b
-    #
-    # In MR, between-block independence of CpG blocks means
-    # X_hat_b ⊥ X_hat_{-b} approximately, so Gamma_hat_b ≈ 0
-    # and Z_b ≈ X_hat_b.
-    #
-    # Within-block collinearity of X_hat_b is handled by SVD truncation
-    # (same as standard case -- high within-block CpG correlation leads
-    # to near-singular Z_b^T Z_b, addressed by rank-r projection).
-    # ----------------------------------------------------------------
     sm_mr <- construct_score_matrix(X_hat_b, X_hat_neg_b,
                                      lambda         = lambda_score,
                                      cond_threshold = cond_threshold)
@@ -1283,34 +1196,9 @@ mz_group_wald_mr <- function(y, X_hat, Z = NULL, B_hat = NULL,
     P_b <- sm_mr$P_G
     k_b <- sm_mr$k_G   # effective degrees of freedom after SVD truncation
 
-    # ----------------------------------------------------------------
-    # STEP 3c: Partial residual in MR setting
-    #
-    # partial_resid_b = y - X_hat_{-b} %*% theta_init_{-b}
-    #
-    # This is y with the estimated causal contributions of all
-    # OTHER blocks removed, leaving block b's causal signal + noise.
-    #
-    # Under H_0 (block b has no causal effect on y):
-    #   partial_resid_b ≈ eps  (pure noise)
-    # Under H_1:
-    #   partial_resid_b ≈ X_hat_b theta*_b + eps  (signal + noise)
-    # ----------------------------------------------------------------
     theta_neg_b_mr  <- theta_init[idx_neg_b]
     partial_resid_b <- y - X_hat_neg_b %*% theta_neg_b_mr
 
-    # ----------------------------------------------------------------
-    # STEP 3d-e: Projection and Wald statistic
-    #
-    # W_b = (1/sigma_hat^2) ||P_b * partial_resid_b||_2^2
-    #
-    # Under H_0: theta*_b = 0:
-    #   W_b ~ chi^2(k_b)   asymptotically
-    #
-    # The MR exclusion restriction ensures that under H_0, the
-    # instruments Z affect y only through X_hat, so partial_resid_b
-    # under H_0 is indeed approximately eps (not correlated with Z).
-    # ----------------------------------------------------------------
     proj_b_mr   <- P_b %*% partial_resid_b
     wald_stat_b <- sum(proj_b_mr^2) / sigma_hat^2
     pval_b      <- pchisq(wald_stat_b, df = k_b, lower.tail = FALSE)
@@ -1460,54 +1348,14 @@ solve_group_lasso_proxgrad <- function(y, X_hat, omega, cg_blocks,
 }
 
 # ============================================================================
-# REGION WALD TEST FUNCTION (Framework: Mitra & Zhang (2016))
+# REGION WALD TEST FUNCTION
 # ============================================================================
 
 # mz_group_wald_test()
 #
 # Region-level group Wald test for G2G Mendelian Randomization
 # Framework: Mitra & Zhang (2016), adapted to the two-stage MR setting
-#
-# DESCRIPTION:
-#   Performs the Mitra & Zhang group Wald test for causal effects of
-#   methylation blocks on an outcome, using instrumented exposures from
-#   a two-stage IV pipeline. Tests H_0: theta_b = 0 for each CpG block b,
-#   where theta_b is the vector of causal effects for block b.
-#
-#   The test statistic for block b is:
-#     W_b = ||P_b r_b||^2 / sigma_hat^2  ~  chi^2(d_b)  under H_0
-#   where:
-#     P_b   = X_hat_b (X_hat_b^T X_hat_b)^dagger X_hat_b^T  (score matrix)
-#           = P_Z X_b (X_b^T P_Z X_b)^dagger X_b^T P_Z      (2SLS annihilator)
-#     r_b   = y - X_hat_{-b} theta_{-b}                      (partial residual)
-#     d_b   = rank(P_b) after SVD truncation                  (degrees of freedom)
-#
-#   P_b has rank d_b = cg_blocks[b] by construction because
-#   X_hat_b = Z_b B_ols already maps instrument space to methylation space.
-#   This satisfies the rank condition of Mitra & Zhang Theorem 2.
-#
-# INITIAL ESTIMATOR:
-#   "sgl" (default, recommended):
-#     Scaled sparse group lasso via fit_scaled_group_lasso().
-#     Theoretically justified by MZ Theorem 6.
-#     lambda_scale is selected adaptively based on combined_signal:
-#       High noise (combined_signal < lambda_threshold): lambda_noisy
-#       Detectable signal (combined_signal >= lambda_threshold): lambda_signal
-#     Rationale: in the high-noise regime, greater penalization is needed
-#     to prevent the estimator from assigning spurious nonzero coefficients
-#     to null CpG sites, which inflates Type I error via the partial residual.
-#
-#   "en" (experimental):
-#     Tuned elastic net via cv.glmnet() with alpha grid search [0.1, 0.9].
-#     Better point estimates when signal is present. Collapses to zero
-#     vector in ~18-26% of applications at effect size 0.10. en_fallback
-#     controls behaviour on collapse. Not covered by MZ Theorem 6.
-#
-# COMBINED SIGNAL:
-#   combined_signal = mean(first_stage_R^2) * second_stage_R^2
-#   Computed internally from X_hat and y. Measures IV-methylation-outcome
-#   signal strength. Used only for adaptive lambda selection (SGL).
-#
+
 # CORRECTIONS:
 #   Applied simultaneously across all B block p-values.
 #   "none"       : raw p-values vs fdr_level
