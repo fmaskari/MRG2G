@@ -21,7 +21,7 @@ Checks and packages the data for fitting. It verifies that `Z`, `X`, `y`, and `U
 
 ### `mrg2g_tune()`
 Selects the Stage 1 penalty parameters for each gene by K-fold cross-validation of how well Z predicts X; the outcome is never used. For each gene, the penalty weights (`a1`, `a2`) are chosen at the cross-validation minimum and `lambda` by the one-standard-error rule within that structure. For multiple genes, `lambda_trans` is then chosen the same way with the cis parameters fixed.
-**Main output:** per-gene `lambda`, `a1`, and `a2`, `lambda_trans` (multiple genes only), and the full cross-validation tables.
+**Main output:** per-gene `lambda`, `a1`, and `a2`, `lambda_trans`, and the full cross-validation tables.
 
 ### `mrg2g_fit()`
 Fits the two-stage model.
@@ -40,7 +40,6 @@ In Stage 2, the selected instruments give fitted methylation values, and the out
 ```r
 source("MRG2G.R")
 source("simulate_g2g_data.R")
-source("mrg2g_tune.R")
 
 d <- simulate_mrg2g_example(n = 300, signal = 0.25, cov_structure = "AR1", seed = 1)
 
